@@ -9,6 +9,7 @@ def producer():
         print("Thread(producer): Initializing the event")
         EVENT.set()   
         time.sleep(1)
+        
 def consumer():   
     while True:
         print("Thread(consumer): Waiting for the event")
