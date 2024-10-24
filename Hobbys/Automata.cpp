@@ -274,12 +274,45 @@ int main()
     cout << "=============" << endl;
     FSM F(4, 2, m, m);
     F.FSM_output();
+    //==========================================================
+    int N = 4;
+    int M = 4;
+    int INPUTS = 2;
+    int OUTPUTS = 2;
+    int* g1 = new int[N];
+    int* f1 = new int[N];
+    f1[0] = 1; f1[1] = 0; f1[2] = 1; f1[3] = 1;
+    for (int i = 0; i < N; i++)g1[i] = (i + 1) % N;
 
-    FSM_with_trans FFF(4, 2, m, m, 0);
+    int** g2 = new int*[INPUTS];
+    int** f2 = new int*[INPUTS];
+    for (int i = 0; i < 2; i++) {
+        g2[i] = new int[N];
+        f2[i] = new int[M];
+    }
+    g2[0][0] = 1;   g2[1][0] = 0;
+    g2[0][1] = 2;   g2[1][1] = 1;
+    g2[0][2] = 0;   g2[1][2] = 3;
+    g2[0][3] = 3;   g2[1][3] = 2;
+
+    f2[0][0] = 0;   f2[1][0] = 1;
+    f2[0][1] = 0;   f2[1][1] = 1;
+    f2[0][2] = 0;   f2[1][2] = 1;
+    f2[0][3] = 0;   f2[1][3] = 0;
+
+
+
+
+    Automata_with_trans A1(N, g1, f1, 0);
+    FSM_with_trans A2(N, INPUTS, g2, f2, 0);
+    for (int i = 0; i < 32; i++) {
+        cout << A2.transit(A1.transit())<<' ';// system("pause");
+    }
     
-    
+    /*
     cout << endl;
     for (int i = 0; i < 16; i++)cout << FFF.transit(i % 2)<<' ';
+    */
     system("pause");
     return 0;
 }
