@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <stdbool.h>
 
 pthread_mutex_t mutex;    // МЬЮТЕКС  
 pthread_cond_t cond;      // УСЛОВИЕ  (оно выступает событием)
