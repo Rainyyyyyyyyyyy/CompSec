@@ -71,6 +71,8 @@ int main(int argc, char *argv[]) {
         close(server_sock);
         return 1;
     }
+   
+    
 
     // Register signal handler for SIGHUP
     printf("Registration signal handler for SIGHUP\n");
