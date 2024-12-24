@@ -102,12 +102,10 @@ int main(int argc, char *argv[]) {
             if(client_fd > max_fd)max_fd = client_fd;
         }
         while(pselect(max_fd + 1, &readfds, NULL, NULL, NULL, &origMask) == -1){
-            printf("pselect() = -1\n");
-                if(errno == EINTR){
-                printf("    EINTR has occured\n");
+            if(errno == EINTR){
                 if(wassighup == 1){
                     wassighup = 0;
-                    printf("        wassighup has caught\n");
+                    printf("Wassighup has caught\n");
                 }
             }
         }
@@ -137,7 +135,7 @@ int main(int argc, char *argv[]) {
             if (FD_ISSET(client_fd, &readfds)) {
                 char buffer[1024];
                 ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);
-                printf("Server recvieved data\n");
+                printf("Server recieved data\n");
                 if (bytes_read == -1) {
                     perror("Recieving has been failed");
                 } else if (bytes_read == 0) {
