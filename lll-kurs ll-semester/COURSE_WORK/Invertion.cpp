@@ -121,3 +121,73 @@ Node* get_u_from_z(Node* root, int* z, int i, FSM_with_trans& A2, int wall) {
     return root;
 }
 
+
+void mark_to_delete(Node* root) {
+    // пометить ветви, у которых листья помечены need_to_delete
+    if (root->left != NULL) {
+        mark_to_delete(root->left);
+    }
+    if (root->right != NULL) {
+        mark_to_delete(root->right);
+    }
+    if (root->left == NULL && root->right == NULL) {
+    L1:
+        if (root->need_to_delete) {
+            do {
+                root->need_to_delete = true;
+                if (root->back != NULL)root = root->back;
+                else return;
+            } while ((root->left == NULL) != (root->right == NULL));
+        }
+    }
+    if (root->left != NULL && root->right != NULL) {
+        if (root->left->need_to_delete && root->right->need_to_delete) {
+            root->need_to_delete = true;
+            goto L1;
+        }
+    }
+}
+
+
+void delete_tree_except_of_start_where_is_need(Node* root, bool& deleted) {
+    if (root == NULL)return;
+    if (root->left != NULL) {
+        delete_tree_except_of_start_where_is_need(root->left, deleted);
+        if (deleted) {
+            root->left = NULL;
+            deleted = false;
+        }
+    }
+    if (root->right != NULL) {
+        delete_tree_except_of_start_where_is_need(root->right, deleted);
+        if (deleted) {
+            root->right = NULL;
+            deleted = false;
+        }
+    }
+    if (root->left == NULL && root->right == NULL) {
+        if (root->back == NULL) {
+            return;
+        }
+        if (root->need_to_delete) {
+            if (root != NULL) {
+                delete root;
+                root = NULL;
+                deleted = true;
+            }
+        }
+    }
+}
+
+
+void make_arrayU_from_tree(Node* root, std::vector<int>& u, int temp) {
+    if (root->left != NULL) {
+        make_arrayU_from_tree(root->left, u, temp << 1);
+    }
+    if (root->right != NULL) {
+        make_arrayU_from_tree(root->right, u, (temp << 1) | 1);
+    }
+    if (root->left == NULL && root->right == NULL) {
+        u.push_back(temp);
+    }
+}
