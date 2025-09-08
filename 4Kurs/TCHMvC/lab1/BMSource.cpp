@@ -1157,65 +1157,74 @@ BM BM::pow_modula(BM power, BM mod) {
 }
 
 
-
-// метод пробных делений
-/*
-	Вход: число n > 1 ,  последовательность пробных
-		делителей { d1 , d2 , … , ds-1 }
-	Выход: представление n в виде n = p1 * p2 * … * pt ,
-		где pi – простые, не обязательно различные.
-	1. Полагаем t = 0,  k = 1 ( t– номер делителя pt ,  k
-				номер пробного делителя dk )
-	2. Если n = 1  – выход.
-	3. Поделить n на dk с остатком:  n = dk  q + r .
-	4. Если r = 0 : а)  увеличить t на 1,
-					б)  положить pt = dk ,
-					в)  положить n = q ,
-					г)  перейти к п. 2.
-	5. Если q > dk :	а) увеличить k на 1,
-						б) перейти к п. 3.
-		Иначе:
-					а)  увеличить t на 1,
-					б)  положить pt = n ,
-					в)  выход (факторизация завершена).
-
-				bool &final будет изменяться внутри в зависимости 
-					от завершённости разложеенмия)
-*/
 std::vector <BM> BM::trial_divisions_method(bool &final) {
+	
+	
 	/* 2 */
 	if (this->hexa.size() == 1 && this->hexa[0] == 1) {
 		std::vector <BM> res;
-		res.push_back(*this);
+		//BM ad = *this;
+		res.emplace_back(*this);
 		final = true;
 		return res;
 	}
-
+	BM two("2");
 	std::vector <BM> result;	// рез-т метода пробного деления (разложение)
+	BM local = *this;
+	while (!local.is_zero() && !(local.hexa[0] & 1)) {
+		local = local >> 1;
+		result.emplace_back(two);
+	}
+	//while()
 	BM d("3");		// начальный элемент посл-ти { ds }
 	BM six("6");	// вспомогательное число для продолжения { ds }	
 	BM wall = this->integer_sqrt();
+	BM prev_d("1");
+	bool flag_l_r = true;
 	/* 1 */
 	int t = 0;		// Номер делителя из разложения
 	int k = 0;		// Номер пробного делителя из { ds }
-	BM local = *this;
 	
-	while (d < wall) {
+	BM one("1");
+	do
+	{
 		/* 3 */
 		BM q = local / d;
 		BM r = local - d * q;
 		/* 4 */
 		if (r.is_zero()) {
-			t++;
-			result.push_back(d);
-
+			//t++;
+			result.emplace_back(d);
+			local = q;
+			if (local == one) {
+				final = true;
+				return result;
+			}
 		}
-	}
-	
-	
-
-
-
+		else
+			if (q > d) {
+				//k++;
+				if (flag_l_r) {
+					d = prev_d * six - one;
+					flag_l_r = false;
+					prev_d = prev_d + one;
+				}
+				else {
+					d = d + one + one;// prev_d* six + one;
+					flag_l_r = true;
+					//prev_d = prev_d + one;
+				}
+			}
+			else {
+				//t++;
+				result.emplace_back(local);
+				final = true;
+				return result;
+			}
+	} while (d <= wall);
+	result.emplace_back(local);
+	final = false;
+	return result;
 }
 
 
@@ -1241,7 +1250,7 @@ BM BM::integer_sqrt() {
 		x0 = x;
 		x = ((*this / x) + x) / two;
 		
-	} while (x >= x0);
+	} while (x < x0);
 	return x0;
 }
 // taskkill /F /IM ConsoleApplication1.exe
