@@ -143,19 +143,29 @@ bool BM::operator >=(BM s) {
 
 
 BM BM::operator-(BM s) {
-	if (*this < s) {
-		return *this;
-	}// работаем только с положительными числами, 
-	 // значит если результат будет отрицательный - ничего не делаем
-	int iterator = s.hexa.size();
-	int bigger_iterator = hexa.size();
+	bool flag = (*this < s);
+	 // работаем только с положительными числами, 
+	 // значит если результат будет отрицательный, но флаг минуса не возвращается (пока что)
 
-	BM result = *this;
+	int iterator = 0; // s.hexa.size();
+	int bigger_iterator = 0; // hexa.size();
+	if (flag) {
+		iterator = hexa.size();
+		bigger_iterator = s.hexa.size();
+	}
+	else {
+		iterator = s.hexa.size();
+		bigger_iterator = hexa.size();
+	}
+
+
+	BM result = (flag)? s : *this;
+	BM min = (flag) ? *this : s;
 	int i = 0;
 	bool k = 0;	// 0 - нет нехватки, 1 - есть нехватка(занимаем)
 	for (i; i < iterator; i++) {
-		D_BASE temp = ((D_BASE)((D_BASE)1 << (size_of_base << 3)) | (D_BASE)hexa[i]);
-		result.hexa[i] = temp = temp - (D_BASE)s.hexa[i] - (D_BASE)k;
+		D_BASE temp = ((D_BASE)((D_BASE)1 << (size_of_base << 3)) | (D_BASE)result.hexa[i]);
+		result.hexa[i] = temp = temp - (D_BASE)min.hexa[i] - (D_BASE)k;
 		k = !(temp >> (size_of_base << 3));	// если произошло занимание из разряда слева
 		// то единица слева встанет в 0 (0000 00... 0001 0000 0000 ... 0000
 		//												[size_of_base * 8 нулей]
@@ -331,6 +341,7 @@ BM BM::operator/(BM s) {
 	}
 	for (int i=result.hexa.size()-1; i>0; i--){
 		if (result.hexa[i] == 0)result.hexa.pop_back();
+		else break;
 	}
 
 	result.Len = result.hexa.size();
@@ -451,7 +462,11 @@ BM BM::operator/(BASE s) {
 
 	}
 	j = result.hexa.size() - 1;
-	while (j>0 && !result.hexa[j]) { result.hexa.pop_back(); j--; }
+	
+	for (int i = result.hexa.size() - 1; i > 0; i--) {
+		if (result.hexa[i] == 0)result.hexa.pop_back();
+		else break;
+	}
 	result.Len = result.hexa.size();
 	return result;
 
@@ -707,6 +722,9 @@ BM BM::operator<<(int k) {
 	}
 	local.hexa[0] <<= mod_shift;
 	local.Len = local.hexa.size();
+	while (local.Len && !local.hexa[local.Len - 1]) {
+		local.hexa.pop_back(); local.Len--;
+	}
 	return local;
 }
 BM BM::operator>>(int k) {
@@ -1212,7 +1230,6 @@ std::vector <BM> BM::trial_divisions_method(bool &final) {
 				else {
 					d = d + one + one;// prev_d* six + one;
 					flag_l_r = true;
-					//prev_d = prev_d + one;
 				}
 			}
 			else {
@@ -1252,5 +1269,189 @@ BM BM::integer_sqrt() {
 		
 	} while (x < x0);
 	return x0;
+}
+
+
+
+// целочисленный корень степени n
+	/*
+	* x(k+1) = 1/n * ( (n-1)*x(k) + [a / x(k) ^ (n-1)] )
+	* a - число под корнем
+	* n - степень корня
+	* x(0) = a
+	* x(0) > x(1) > x(2) > ... > x(k) <= x(k+1)
+	*						значит ответ: [ ^n√a ] = x(k).
+	*/
+BM BM::integer_sqrt_n(int n) {
+	BM xk(1,0);
+	BM xk_1 = *this;
+	int i = 0;
+
+	do {
+		i++;
+		xk = xk_1;
+		//xk_1 = ((double)1 / n) * ((n - 1) * xk + (int)(a / pow(xk, n - 1)));
+		xk_1 = (xk * (n-1) + (*this / xk.pow(n-1))) / n;
+		//std::cout << i << ' '; xk_1.OutputDEC(); std::cout << '\t'; xk.OutputDEC(); std::cout<< '\n';
+	} while (xk > xk_1);
+	return xk;
+
+}
+
+
+
+// Алгоритм Олвея нахождения нетривиального делителя числа
+	/*
+		Вход: нечётное n, нечётное d >= (2 * ^3√n) + 1
+		Выход: делитель р числа n, удаовлетворяющий
+			условию dd < p <= √n, либо ответ
+			"Делителя в указанном диапазоне нет".
+		Обозначения: r1 = r(k),	r2 = r(k-1), q = -4 Δq(k)
+		1. r1 = n mod d.	r2 = n mod (d-2),
+			q = 4(q2 - q1) = 4 ( [n/(d-2)] - [n/d] ),
+			s = [√n]
+		2. d = d+2
+			Если d>s - выход. Ответ: "делителя нет".
+		3. r = 2r1 - r2 + q,	r2 = r1,	r1 = r
+		4. Если r1 < 0, то	r1 = r1 + d
+							q = q + 4
+		5. Пока r1 >= d,	r1 = r1 - d
+							q = q - 4
+		6. Если r1 = 0, то выход. Ответ: p = d
+			Иначе goto 2.
+	*/
+BM BM::Alway_algorithm(bool& success) {
+	BM local = *this;
+	BM result(1, 0);
+	while (!local.is_zero() && !(local.hexa[0] & 1)) {
+		local = local >> 1;
+	}
+	BM one("1");
+	BM two("2");
+	BM four("4");
+	BM d = local.integer_sqrt_n(3) * 2 + one;
+	BM d_sub = d - two;
+	BM r(1, 0);
+	bool minus_flag = false;
+	//BM s = local.integer_sqrt();
+	/* d < p < √n */
+	/* d >= 2 * ^3√n + 1, √n = wall/
+	
+	/* 1 */
+	BM r1 = local % d;							// r1 = n % d
+	BM r2 = local % (d_sub);					// r2 = n % (d-2)
+	BM q = ((local / d_sub) - (local / d))<<2;	// q = 4*(q2-q1)
+	std::cout << "q = "; q.OutputDEC();
+	BM s = local.integer_sqrt();
+	std::cout << "s = [sqrt(n)] = "; s.OutputDEC(); std::cout << '\n';
+	BM ttt("8F");
+	/* 2 */
+	while (!r1.is_zero()) {
+		d = d + two;								// d = d + 2
+		if (d == ttt) {
+			std::cout << ' ';
+		}
+		if (d > s) { success = false; return BM(1, 0); }
+
+		/* 3 */
+		r = (r1 << 1) + q - r2;						// r = 2r1 - r2 + q
+		minus_flag = (r2 > ((r1 << 1) + q));
+		r2 = r1;
+		r1 = r;
+
+		/* 4 */
+		if (minus_flag) {
+			r1 = d - r1;
+			q = q + four;
+		}
+
+		/* 5 */
+		while (r1 >= d) {
+			r1 = r1 - d;
+			q = q - four;
+		}
+
+		/* 6 */
+		if (r1.is_zero()) {
+			success = true;
+			return d;
+		}
+	}
+	return d;
+
+}
+
+
+
+/*
+	Алгоритм Ферма поиска ближайших к
+		делителей числа n
+	Вход:  n – нечётное.
+	Выход: a,b - делители n, или ответ: "n - простое"
+		1. Вычислить
+			Если х^2 = n – выход (ответ: а = b = х).
+		2. Увеличить  x  на 1.
+		3. Если  x = (n+1) / 2 – выход (ответ: «n простое»).
+			Иначе – вычислить z = x^2 – n, y = [√z] 
+		4. Если  у^2 = z  – выход (ответ: а = х + у ,  b = х – у ).
+			Иначе переход к п.2.  
+*/
+std::vector <BM> BM::Ferma_method_factor(bool &primal) {
+	BM local = *this;
+	while (!local.is_zero() && !(local.hexa[0] & 1)) {
+		local = local >> 1;
+	}
+	BM one("1");
+	BM step_3_cmp = (local + one) >> 1;
+	//BM z(1, 0);
+	//BM prev_z = z;
+	BM y(1, 0);
+	/* 1 */
+	std::vector <BM> result;
+	BM x = local.integer_sqrt();
+	if (x.sqr() == local) {
+		primal = false;
+		result.emplace_back(x);
+		result.emplace_back(x);
+		return result;
+	}
+	BM z = (1, 0); // x.sqr();// - local;
+	//std::cout << "n+1 / 2 = "; step_3_cmp.OutputDEC(); std::cout << '\n';
+	/* 2 */
+	do {
+		x = x + one;
+		
+		//std::cout << "x = "; x.OutputDEC(); std::cout << '\t';
+
+		/* 3 */	// Если х = (n+1)/2	то n - простое. выход.
+		if (x == step_3_cmp) {
+			primal = true;
+			result.emplace_back(one);
+			result.emplace_back(one);
+			return result;
+		}
+		else {
+			z = x.sqr() - local;
+			//z = z + (x << 1) - one - local;
+			y = z.integer_sqrt();
+		}
+		//std::cout << "y = "; y.OutputDEC(); std::cout << '\t';
+		//std::cout << "z = "; z.OutputDEC(); std::cout << '\t';
+
+		/* 4 */
+		if (y.sqr() == z) {
+			result.emplace_back(x + y);
+			result.emplace_back(x - y);
+			primal = false;
+			return result;
+		}
+
+		
+		//std::cout << '\n';
+	} while (true);
+
+
+
+
 }
 // taskkill /F /IM ConsoleApplication1.exe
