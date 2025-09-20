@@ -89,6 +89,10 @@ public:
 
 
 
+	// НОД(this, b) методом Евклида
+	BM NOD(BM s);
+
+
 
 	// X % M, where s = M, *this = X, z = BASE.pow(2 * m.size()) / m;
 	// z = основание в степени 2k и разделить на m, k = число цифр в m
@@ -214,5 +218,19 @@ public:
 			Иначе переход к п.2.
 */	// flag = true - n = primal, else n = a*b
 	std::vector <BM> Ferma_method_factor(bool &primal);
+
+	
+	// P(0) Метод Полларда факторизации чисел
+	/*
+	*	Вход: составное n.
+	*	Выход: d - нетривиальный делитель n, или отказ
+	*		1. Положить a=2, b=2
+	*		2. Положиить a = f(a), b = f(f(b)), где f(x) = (x^2 + 1) mod n
+	*		3. Если a=b - выход без результата (достигнут конец периода)
+	*		4. Вычислить d = НОД(|a-b|, n)
+	*			Если d=1, переход к шагу 2.
+	*			Иначе выход - Ответ: d
+	*/	// flag = false -> отказ,	else return d
+	BM P0_Pollard_method_factor(bool& final);
 };
 
