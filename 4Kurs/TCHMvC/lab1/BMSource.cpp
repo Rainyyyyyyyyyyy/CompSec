@@ -428,7 +428,12 @@ BM BM::operator%(BM s) {
 
 	}
 	//std::cout << "Out from %\n";
-	while (local_this.hexa[local_this.hexa.size() - 1] == 0)local_this.hexa.pop_back();
+	//while (local_this.hexa[local_this.hexa.size() - 1] == 0)local_this.hexa.pop_back();
+	for (int i = local_this.hexa.size()-1; i > 0; i--) {
+		if (local_this.hexa[i] == 0)local_this.hexa.pop_back();
+		else break;
+	}
+	local_this.Len = local_this.hexa.size();
 	return local_this / d;
 }
 BM BM::operator/(BASE s) {
@@ -1454,4 +1459,73 @@ std::vector <BM> BM::Ferma_method_factor(bool &primal) {
 
 
 }
+
+
+
+// P(0) Метод Полларда факторизации чисел
+	/*
+	*	Вход: составное n.
+	*	Выход: d - нетривиальный делитель n, или отказ
+	*		1. Положить a=2, b=2
+	*		2. Положиить a = f(a), b = f(f(b)), где f(x) = (x^2 + 1) mod n
+	*		3. Если a=b - выход без результата (достигнут конец периода)
+	*		4. Вычислить d = НОД(|a-b|, n)
+	*			Если d=1, переход к шагу 2.
+	*			Иначе выход - Ответ: d
+	*/	// flag = false -> отказ,	else return d
+BM BM::P0_Pollard_method_factor(bool& final) {
+
+	BM one("1");
+	BM local = *this;
+	//while (!local.is_zero() && !(local.hexa[0] & 1)) {
+	//	local = local >> 1;
+	//}
+	if (this->Miller_Rabin_test_primality(20)) {
+		final = false;
+		BM l(1, 0);
+		return l;
+	}
+
+
+	BM d(1, 0);
+	/* 1 */
+	BM a("2");
+	BM b("2");
+	int i = 0;
+	do {
+		i++;
+		if (i == 12) {
+			std::cout << ' ';
+		}
+		/* 2 */
+		a = (a.sqr() + one) % local;							// a = f(a) % n
+		b = (((b.sqr() + one) % local).sqr() + one) % local;	// b = f(f(b) % n) % n
+		if (a == b) {
+			final = false;
+			return BM(1, 0);
+		}
+		d = (a-b).NOD(local);
+		std::cout << "d = NOD("; (a - b).OutputDEC(); std::cout << ',';
+		local.OutputDEC(); std::cout << ')' << "  =  "; d.OutputDEC();
+		std::cout << '\n';
+	} while (d == one);
+	final = true;
+	return d;
+}
+
+// НОД(this, b) методом Евклида
+BM BM::NOD(BM s) {
+	if (this->is_zero())return BM(1, 0);
+	BM a = *this;
+	BM t(1, 0);
+	while (!a.is_zero()) {
+		a = a % s;
+		if (a.is_zero())return s;
+		t = a;
+		a = s;
+		s = t;
+	}
+	return s;
+}
+
 // taskkill /F /IM ConsoleApplication1.exe
