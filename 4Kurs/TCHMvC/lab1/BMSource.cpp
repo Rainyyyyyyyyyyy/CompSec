@@ -1271,7 +1271,8 @@ BM BM::integer_sqrt() {
 	{
 		x0 = x;
 		x = ((*this / x) + x) / two;
-		
+		//std::cout << "x: "; x.OutputDEC(); std::cout << "x0: "; x0.OutputDEC();
+		//std::cout << '\n';
 	} while (x < x0);
 	return x0;
 }
@@ -1415,22 +1416,20 @@ std::vector <BM> BM::Ferma_method_factor(bool &primal) {
 	std::vector <BM> result;
 	BM x = local.integer_sqrt();
 	if (x.sqr() == local) {
-		primal = false;
+		primal = true;
 		result.emplace_back(x);
 		result.emplace_back(x);
 		return result;
 	}
 	BM z = (1, 0); // x.sqr();// - local;
-	//std::cout << "n+1 / 2 = "; step_3_cmp.OutputDEC(); std::cout << '\n';
 	/* 2 */
 	do {
-		x = x + one;
 		
-		//std::cout << "x = "; x.OutputDEC(); std::cout << '\t';
+		x = x + one;
 
 		/* 3 */	// Если х = (n+1)/2	то n - простое. выход.
 		if (x == step_3_cmp) {
-			primal = true;
+			primal = false;
 			result.emplace_back(one);
 			result.emplace_back(one);
 			return result;
@@ -1440,19 +1439,15 @@ std::vector <BM> BM::Ferma_method_factor(bool &primal) {
 			//z = z + (x << 1) - one - local;
 			y = z.integer_sqrt();
 		}
-		//std::cout << "y = "; y.OutputDEC(); std::cout << '\t';
-		//std::cout << "z = "; z.OutputDEC(); std::cout << '\t';
 
 		/* 4 */
 		if (y.sqr() == z) {
 			result.emplace_back(x + y);
 			result.emplace_back(x - y);
-			primal = false;
+			primal = true;
 			return result;
 		}
 
-		
-		//std::cout << '\n';
 	} while (true);
 
 
@@ -1476,14 +1471,10 @@ std::vector <BM> BM::Ferma_method_factor(bool &primal) {
 BM BM::P0_Pollard_method_factor(bool& final) {
 
 	BM one("1");
-	BM local = *this;
-	//while (!local.is_zero() && !(local.hexa[0] & 1)) {
-	//	local = local >> 1;
-	//}
+	//BM local = *this;
 	if (this->Miller_Rabin_test_primality(20)) {
-		final = false;
-		BM l(1, 0);
-		return l;
+		final = false;;
+		return *this;
 	}
 
 
@@ -1498,15 +1489,17 @@ BM BM::P0_Pollard_method_factor(bool& final) {
 			std::cout << ' ';
 		}
 		/* 2 */
-		a = (a.sqr() + one) % local;							// a = f(a) % n
-		b = (((b.sqr() + one) % local).sqr() + one) % local;	// b = f(f(b) % n) % n
+		a = (a.sqr() + one) % *this;							// a = f(a) % n
+		b = (((b.sqr() + one) % *this).sqr() + one) % *this;	// b = f(f(b) % n) % n
+		/* 3 */
 		if (a == b) {
 			final = false;
 			return BM(1, 0);
 		}
-		d = (a-b).NOD(local);
+		/* 4 */
+		d = (a - b).NOD(*this);	//d = NOD(n, a - b);
 		std::cout << "d = NOD("; (a - b).OutputDEC(); std::cout << ',';
-		local.OutputDEC(); std::cout << ')' << "  =  "; d.OutputDEC();
+		this->OutputDEC(); std::cout << ')' << "  =  "; d.OutputDEC();
 		std::cout << '\n';
 	} while (d == one);
 	final = true;
@@ -1526,6 +1519,146 @@ BM BM::NOD(BM s) {
 		s = t;
 	}
 	return s;
+}
+
+
+
+
+// Р1 метод Полларда поиска нетривиального делителя
+/*	Вход: составное n
+*	Выход: d - нетривиальный делитель, или отказ.
+*	1. Выбрать границу гладкости B
+*	2. выбрать случайное 2 <= a <= n-2, вычислить d=NOD(a,n);
+*		Если d>1, выход, ответ d
+*	3. Для всех простых q<B:
+*		3.1 Вычислить e = [ln <2> n / ln <2> q] ~ [log <q> (n)] - можно к числителю добавить +1 и тогда алгоритм будет отрабатывать как нужно
+*		3.2 Положить a = a^(q^e) mod n
+*		3.3 Если a = 1 - Выход. отказ.
+*			Иначе найти d = НОД(a-1, n)
+*			Если d != 1 - выход. Ответ: d
+*	4. Если d=1 - отказ.
+*		Иначе ответ: d
+*/
+BM BM::P1_Pollard_method_factor(bool& final) {
+	/* 1 */
+	BM B(1, 0);					// граница гладкости
+	BM one("1");
+	BM two("2");
+	BM t100("64");	// = 100 
+	std::vector <BM> q_primals;
+
+	B.set_random_less_than_M(t100-two);
+	B = B + two;
+	std::cout << "B:\t\t"; B.OutputDEC(); std::cout << '\n';
+	//	=	=	=	=	=	
+	//			ГЕНЕРАЦИЯ { qi } последовательности простых чисел до B методом
+	//				"РЕШЕТО ЭРАТОСФЕНА"
+	//	=	=	=	=	=	=	=	=	=	=	=	=	=
+	int N = B.hexa[0];
+	bool* isPrime = new bool[N];
+	for (int i = 2; i * i < N; i++) {
+		if (isPrime[i]) {
+			for (int j = i * i; j < N; j += i) {
+				isPrime[j] = false;
+			}
+		}
+	}
+	for (int i = 2; i < N; i++)if (isPrime[i])q_primals.emplace_back(i);
+
+	BM d(1, 0);		// NOD
+	/* 2 */
+	BM a(1, 0);						// Выбрать случайное 2 <= a <= n-2
+	a.set_random_less_than_M(*this - two);
+	a = a + two;
+	d = NOD(a);					// Вычислить НОД(a, n)
+	if (d > one) { final = true; return d; }	// Если d > 1, то выход, Ответ: d
+	/* 3 */
+	
+	for (BM i : q_primals) {
+		std::cout << " trying: q = "; i.OutputDEC(); std::cout << '\n';
+		/* 3.1 */ // e = log <q> n
+		int e1 = size_of_base << 3;		// log <2> (q)
+		int e2 = e1;					// log <2> (n)
+		BASE mask = BASE(~BASE(BASE(~0) >> 1));	// 1000000...000
+		while ((mask & i.hexa[i.hexa.size() - 1]) == 0) {
+			e1--; mask >>= 1;
+		}
+		e1 = e1 + (size_of_base << 3) * (i.hexa.size() - 1);
+		mask = BASE(~BASE(BASE(~0) >> 1));
+		while ((mask & hexa[hexa.size() - 1]) == 0) {
+			e2--;
+			mask >>= 1;
+		}
+		e2 = e2 + (size_of_base << 3) * (hexa.size() - 1);
+
+		int e = (e2 + 1) / e1;
+		/* 3.2 */	//a = a^(q^e)
+		BM qe = i.pow(e);
+		a = a.pow_modula(qe, *this);
+		/* 3.3 */	// если а=1 - отказ
+		if (a == one) { final = false; return BM(1, 0); }
+		else {
+			d = NOD(a - one);		// D = NOD(n, a-1)
+			if (d != one) { final = true; return d; }
+		}
+		/* 4 */
+	}
+	
+	
+	if (d == one) { final = false; return BM(1, 0); }
+	else { final = true; return d; }
+}
+
+
+
+
+/*
+	// Алгоритм Гельфонда поиска дискретного логарифма
+		Вход: G = <g> – циклическая группа, | G | = n, а  G.
+		Выход:  x = log <g> (a)
+			1. Вычислить h = [√n] + 1
+			2. Вычислить  b = g^h.
+			3. Построить две таблицы:
+				{b^u ,   u = 1, 2, …, h }  («шаги великана»)
+				{a * g^v ,   v = 1, 2, …, h }  («шаги ребёнка»)
+			4. Найти в таблицах одинаковые элементы   bu = a  gv
+				и вычислить из этого равенства  x = hu – v .
+			5. Ответ:  x .
+ */
+BM Discrete_log_Gendels_method(G Group, BM a) {
+	// если N % g == 0, то значит N и g - не взаимно простые, и значит <g> - не группа
+	if (Group.mod % Group.p == BM(1, 0)) {
+		std::cout << "g = "; Group.p.OutputDEC();
+		std::cout << "cannot produce <g>\n";
+		return BM(1, 0);
+	}
+	/* 1 */
+	BM hh = Group.size.integer_sqrt() + 1;
+	BM one("1");
+	/* 2 */
+	BM b = Group.p.pow(hh);
+	b = b % Group.mod;
+	std::vector<BM> BU;
+	int i1 = 0;
+	/* 3 */
+	for (BM i("1"); i <= hh; i = i + one) {
+		BU.emplace_back(b.pow_modula(i, Group.mod));
+		i1++;
+	}
+	std::cout << "---------\n";
+	for (int i = 1; hh >= i; i++) {
+		BM agv = (a * Group.p.pow_modula(i, Group.mod)) % Group.mod;
+		for (int j = 0; j < BU.size(); j++) {
+			/* 4 */
+			if (agv == BU[j]) {
+				BM result(1, 0);
+				std::cout << "(u,v): " << i << ',' << j << '\n';
+				std::cout << "\nX = hu - v = "; (result = ((hh * (j + 1) - (i)) % Group.mod)).OutputDEC();
+				std::cout << '\n';
+				return result;
+			}
+		}
+	}	
 }
 
 // taskkill /F /IM ConsoleApplication1.exe
